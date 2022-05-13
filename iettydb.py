@@ -12,7 +12,7 @@ class DB:
     mysql接続クラス
     """
 
-    def __init__(self, is_debug=False, target='production'):
+    def __init__(self, is_debug=False, target='staging'):
         self.db = None
         self.target = target
         self.is_debug = is_debug
@@ -21,9 +21,11 @@ class DB:
         if self.target == 'production':
             if self.is_debug: print('connect production')
             self.connect_iettydb()
-        else:
+        elif self.target == 'staging':
             if self.is_debug: print('connect staging')
             self.connect_staging()
+        else:
+            pass
 
     def connect_db(self, host, user, passwd, schema):
         if self.db is not None:
@@ -52,6 +54,16 @@ class DB:
         p = self.getSsmParams(param_names)
         self.connect_db(p['host'], p['user'], p['passwd'], 'iettydb')
         return self
+    
+    def connect_production_copy(self, host):
+        param_names = {
+            'production-iettydb-user': 'user',
+            'production-iettydb-password': 'passwd'
+        }
+        p = self.getSsmParams(param_names)
+        self.connect_db(host, p['user'], p['passwd'], 'iettydb')
+        return self
+
 
     def getSsmParams(self, param_names):
         response = boto3.client('ssm', region_name='ap-northeast-1').get_parameters(
@@ -65,6 +77,19 @@ class DB:
         if self.is_debug: print(query)
         df = psql.read_sql(query, self.db)
         return df
+    
+    def execute(self, query):
+        if self.db is None:
+            self.con()
+        if self.is_debug: print(query)
+        try:
+            with self.db.connect() as con:
+                con.execute(query)
+        except Exception as e:
+            return str(e)
+        return "success"
+
+
 
     def update(self, df, target_table, tmp_table):
         df.to_sql(tmp_table, self.db, if_exists='replace', chunksize=10000)
