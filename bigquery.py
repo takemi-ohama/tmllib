@@ -1,4 +1,5 @@
 import json
+import pdb
 
 import pandas as pd
 from google.oauth2 import service_account
@@ -17,7 +18,8 @@ class DB:
         self.json_key = self.conf.json_key
         self._cred = None
 
-    def read_gbq(self, query):
+    def read_gbq(self, query, args = {}):
+        query = query.format(**args)
         if self.conf.is_debug: print(query)
         df = pd.read_gbq(query, project_id=self.project_id, dialect='standard', credentials=self.cred())
         return df
@@ -87,4 +89,7 @@ class DB:
         if self.conf.is_debug:
             print('num:', len(df))
         return df
-        
+
+    def upload_csv(self, filename, tablename, **kwarg):
+        df = pd.read_csv(filename, **kwarg)
+        self.write_gbq(df, tablename)

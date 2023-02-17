@@ -1,12 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[2]:
-
-
-#!/opt/conda/bin/python
-# -*- coding: utf-8 -*-
-
 import pdb
 import pandas as pd
 import numpy as np

@@ -1,4 +1,3 @@
-import json
 import time
 import math
 import os
@@ -11,10 +10,13 @@ import subprocess
 import concurrent.futures
 from datetime import datetime
 from shutil import move
+import glob
 
 import pandas as pd
+import numpy as np
 import pytz
 from sklearn.model_selection import train_test_split
+import itertools
 
 
 class Helper:
@@ -36,6 +38,7 @@ class Helper:
 
     def s3cp(self, src, dest, s3_region=None):
         opt = '--region={}'.format(s3_region) if s3_region is not None else ''
+        print(['aws', opt, 's3', 'cp', src, dest])
         subprocess.call(['aws', opt, 's3', 'cp', src, dest])
 
     def s3sync(self, src, dest, s3_region=None):
@@ -56,12 +59,11 @@ class Helper:
         display(*x)
         pd.options.display.min_rows = min_rows
         pd.options.display.max_rows = max_rows
-    
+
     def category2id(self, categories):
         tag_idx = sorted(set(categories))
         tag_dic = dict(zip(tag_idx, range(len(tag_idx))))
         return categories.map(tag_dic), tag_idx
-        
 
     def adjust_frame(self, df, frame, drop=True):
         """
@@ -94,7 +96,7 @@ class Helper:
         return obj
 
     def parallel(self, future_method, args, *,
-                 chunk=500, workers=-1, executor='thread', cache=None, limit=1000000000, wait=0):
+                 chunk=2000, workers=-1, executor='thread', cache=None, cache_dir=None, limit=1000000000, wait=0):
         """
         大規模データを使って外部APIを叩く場合のチャンク分割+並列処理
         * 1チャンクごとにThreadまたはProcessでfuture_methodを並列実行
@@ -105,19 +107,26 @@ class Helper:
         future_method: 並列実行する関数(引数は配列1つであること)
         args: future_methodに渡す引数の配列
         chunk: 1チャンクごとの処理数
-        workers: 1チャンクごとの並列数 
-        executor: thread/processのいずれかの文字列
+        workers: 1チャンクごとの並列数
+        executor: thread/process/debugのいずれかの文字列
         cache: キャッシュする場合のファイル名
+        cache_dir: chankごとに別ファイルとなるキャッシュ。
         limit: argsの実行行数(動作テストなどで全部実行しない場合に利用する)
         wait: チャンクごとの最小実行時間(sec)。実際の実行時間がwait値以下の場合、sleepを掛ける
         """
         start = 0
-        stop = min(len(args),limit)
+        stop = min(len(args), limit)
         digit = len(str(stop))
         results = []
 
         # キャッシュ呼び出し
-        if cache != None and os.path.isfile(cache):
+        if cache_dir != None:
+            files = sorted(glob.glob(os.path.join(cache_dir, '*.cache')))
+            if len(files) > 0:
+                # 最後のファイルは壊れている可能性があるのでひとつ前から
+                start = (len(files) - 1) * chunk
+
+        elif cache != None and os.path.isfile(cache):
             results = self.load(cache)
             start = len(results)
 
@@ -130,31 +139,40 @@ class Helper:
 
         # チャンク分割処理
         for suffix, i in enumerate(range(start, stop, chunk)):
-            start = datetime.now(pytz.timezone('Asia/Tokyo'))
+            if cache_dir != None:
+                results = []
+
+            start_time = datetime.now(pytz.timezone('Asia/Tokyo'))
             print(f'{i:0{digit}}-', end='')
             t = min(i + chunk, stop)
             target = args[i:t]
 
             # 並列処理
             futures = []
-            with exec(max_workers=workers) as executor:
+            with exec(max_workers=workers) as exe:
                 for n, arg in enumerate(target):
-                    # futures.append(future_method(arg))
-                    futures.append(executor.submit(future_method, arg))
+                    if executor == 'debug':
+                        futures.append(future_method(arg))
+                    else:
+                        futures.append(exe.submit(future_method, arg))
             ret = [x.result() if hasattr(x, 'result') else x for x in futures]
             results += ret
 
             # 結果キャッシュ処理
-            if cache != None:
+            if cache_dir != None:
+                d = os.path.dirname(cache_dir)
+                if not os.path.isdir(d): os.makedirs(d)
+                self.dump(results, os.path.join(cache_dir, f'{i:07}.cache'))
+            elif cache != None:
                 d = os.path.dirname(cache)
                 if not os.path.isdir(d): os.makedirs(d)
                 if os.path.exists(cache):
                     move(cache, cache + '.bak')
                 self.dump(results, cache)
-            
+
             # チャンク終了報告
-            end = datetime.now(pytz.timezone('Asia/Tokyo'))
-            elapse = (end - start).total_seconds()
+            end_time = datetime.now(pytz.timezone('Asia/Tokyo'))
+            elapse = (end_time - start_time).total_seconds()
             minutes = '{:.0f}m '.format(elapse // 60) if elapse // 60 != 0 else ''
             sec = elapse % 60
             z = t - 1
@@ -164,20 +182,28 @@ class Helper:
             if wait > 0:
                 # wait秒経過までsleepする
                 remain = wait - elapse
-                if remain > 0: 
-                    print(' sleep:', int(remain), 'sec', end='')                    
+                if remain > 0:
+                    print(' sleep:', int(remain), 'sec', end='')
                     time.sleep(remain)
-            
+
             print('')
 
+        # チャンク別キャッシュの場合、全体を呼び戻す
+        if cache_dir != None:
+            files = sorted(glob.glob(os.path.join(cache_dir, '*.cache')))
+            results = []
+            for x in files:
+                results += self.load(x)
         return results
 
     def train_valid_test_split(self, df, train_size, valid_size=None, stratify=None):
         if valid_size is None:
             valid_size = (1 - train_size) / 2
         remain_valid_size = valid_size / (1 - train_size)
-        train, remain = train_test_split(df.copy(), train_size=train_size, stratify=stratify, random_state=13)
-        valid, test = train_test_split(remain.copy(), train_size=remain_valid_size, stratify=stratify, random_state=13)
+        train, remain = train_test_split(df.copy(), train_size=train_size,
+                                         stratify=df[stratify] if stratify in df else None, random_state=13)
+        valid, test = train_test_split(remain.copy(), train_size=remain_valid_size,
+                                       stratify=remain[stratify] if stratify in df else None, random_state=13)
         return train, valid, test
 
     def timeline_split(self, df, train_size, valid_size=None, stratify=None, orderby=None):
@@ -226,6 +252,29 @@ class Helper:
         ).T.fillna(0).astype(int)
         print('pos_neg matrix')
         display(stat)
+
+    def freq(self, data, class_width=None):
+        data = np.asarray(data)
+        if class_width is None:
+            class_size = int(np.log2(data.size).round()) + 1
+            class_width = round((data.max() - data.min()) / class_size)
+
+        bins = np.arange(0, data.max() + class_width + 1, class_width)
+        hist = np.histogram(data, bins)[0]
+        cumsum = hist.cumsum()
+
+        return pd.DataFrame(
+            {
+             '度数': hist,
+             '累積度数': cumsum,
+             '相対度数': hist / cumsum[-1],
+             '累積相対度数': cumsum / cumsum[-1]
+             },
+            index=pd.Index(
+                [f'{bins[i]}-{bins[i+1]}'
+                 for i in range(hist.size)],
+                name='Class')
+        )
 
     def varplot(self, df):
         '''
@@ -285,7 +334,7 @@ class Pipeline:
                 'args': [df],
             },
             {
-                'name': 'preprocess',                
+                'name': 'preprocess',
                 'method': self.loader.preprocess,
                 'return': ('df', 'categories'),
                 'args': ['#df#'],
