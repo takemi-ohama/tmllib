@@ -17,6 +17,7 @@ import numpy as np
 import pytz
 from sklearn.model_selection import train_test_split
 import itertools
+import boto3
 
 
 class Helper:
@@ -44,6 +45,15 @@ class Helper:
     def s3sync(self, src, dest, s3_region=None):
         opt = '--region={}'.format(s3_region) if s3_region is not None else ''
         print(subprocess.call(['aws', opt, 's3', 'sync', src, dest]))
+        
+    def read_ssm(self, key, region=None):
+        #TODO: regionを反映
+        client = boto3.client('ssm')
+        response = client.get_parameter(
+            Name=key,
+            WithDecryption=True,
+        )
+        return response
 
     # rekognition用のmanifestファイルを作成する
     def make_manifest(self, df, filename):
@@ -239,6 +249,7 @@ class Helper:
         valid[merge_column] = 'valid'
         test[merge_column] = 'test'
         df = pd.concat([train, valid, test])
+        df = df.reset_index(drop=True)
         return df
 
     def show_posneg_matrix(self, df, dependant, merge_column):

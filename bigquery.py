@@ -14,8 +14,8 @@ class DB:
     def __init__(self, conf):
         self.conf = conf
         self.account_type = self.conf.account_type
-        self.project_id = self.conf.project_id
-        self.json_key = self.conf.json_key
+        self.project_id = self.conf.project_id if hasattr(self.conf,'project_id') else None
+        self.json_key = self.conf.json_key if hasattr(self.conf,'json_key') else None
         self._cred = None
 
     def read_gbq(self, query, args = {}):
