@@ -74,7 +74,7 @@ class Evaluator:
         
     def plot_roc(self, fpr, tpr, roc_auc, title='ROC curve'):
         import matplotlib.pyplot as plt
-        plt.rcParams['font.family'] = 'IPAGothic'
+        plt.rcParams['font.family'] = 'IPAexGothic'
         plt.figure()
         lw = 2
         plt.plot(fpr, tpr, color='darkorange',
