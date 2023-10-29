@@ -9,7 +9,7 @@ from google.cloud import bigquery
 from config_abc import BaseConfig
 
 
-class DB:
+class BigQuery:
     u"""
     Google BigQuery接続クラス
     """

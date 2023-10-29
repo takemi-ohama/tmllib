@@ -20,7 +20,7 @@ import itertools
 import boto3
 
 
-class Helper:
+class EtlHelper:
     u"""
     データ分析ETLツール
     """
@@ -45,7 +45,7 @@ class Helper:
     def s3sync(self, src, dest, s3_region=None):
         opt = '--region={}'.format(s3_region) if s3_region is not None else ''
         print(subprocess.call(['aws', opt, 's3', 'sync', src, dest]))
-        
+
     def read_ssm(self, key, region=None):
         #TODO: regionを反映
         client = boto3.client('ssm')
