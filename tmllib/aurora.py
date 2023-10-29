@@ -7,7 +7,7 @@ import pandas.io.sql as psql
 from sqlalchemy import create_engine
 
 
-class DB:
+class Aurora:
     u"""
     postgresql/redshift接続クラス
     """
