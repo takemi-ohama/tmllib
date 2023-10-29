@@ -1,12 +1,10 @@
 import json
 import pdb
-
-import pandas as pd
+from google.cloud import bigquery
 from google.oauth2 import service_account
 import boto3
 import os
-from google.cloud import bigquery
-from config_abc import BaseConfig
+import pandas as pd
 
 
 class DB:
@@ -14,12 +12,13 @@ class DB:
     Google BigQuery接続クラス
     """
 
-    def __init__(self, conf: BaseConfig):
+    def __init__(self, conf):
         self.conf = conf
         self.account_type = self.conf.account_type
         self.project_id = self.conf.project_id if hasattr(self.conf, 'project_id') else None
         self.json_key = self.conf.json_key if hasattr(self.conf, 'json_key') else None
         self.region = self.conf.aws_region if hasattr(self.conf, 'aws_region') else None
+        self.location = self.conf.gbq_location if hasattr(self.conf, 'gbq_location') else None
         self._cred = None
         self.client = None
 
@@ -29,10 +28,16 @@ class DB:
         df = pd.read_gbq(query, project_id=self.project_id, dialect='standard', credentials=self.cred())
         return df
 
-    def write_gbq(self, df, tablename, table_schema=None, location=None, if_exists='replace'):
-        df.to_gbq(tablename, project_id=self.project_id, if_exists=if_exists,
-                  credentials=self.cred(), table_schema=table_schema, location=location)
-        return df
+    def write_gbq(self, df, tablename, table_schema=None):
+        self.cred()
+        schema = [bigquery.SchemaField(**x) for x in table_schema]
+        job_config = bigquery.LoadJobConfig(
+            schema=schema,
+            write_disposition='WRITE_TRUNCATE',
+        )
+
+        job = self.client.load_table_from_dataframe(df, tablename, job_config=job_config)
+        return job
 
     def cred(self):
         if self._cred is not None:
@@ -101,12 +106,3 @@ class DB:
         df = pd.read_csv(filename, **kwarg)
         self.write_gbq(df, tablename)
 
-    def query_with_noreturn(self, sql):
-        self.cred()
-        if self.conf.is_debug: print(sql)
-        self.client.query(sql).result()
-
-    def query(self, sql):
-        self.cred()
-        if self.conf.is_debug: print(sql)
-        return self.client.query(sql).to_dataframe()

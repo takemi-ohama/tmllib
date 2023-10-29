@@ -56,7 +56,7 @@ class Tfrecords:
 
             end = time.time()
             print('elasped:', '{:.2f}'.format(end - start))
-            
+
     def default_download(self, args):
         (id, url, label) = args
         try:
@@ -69,7 +69,7 @@ class Tfrecords:
                 image = bucket.Object(key).get()['Body'].read()
         except Exception as e:
             return None
-        
+
         image = tf.image.decode_jpeg(image, channels=3)
         image = tf.image.resize_with_pad(image, 224, 224)
         image /= 255

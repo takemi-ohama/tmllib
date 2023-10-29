@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 
 class DB:
     u"""
-    mysql接続クラス
+    postgresql/redshift接続クラス
     """
 
     def __init__(self, is_debug=False, target='staging'):
@@ -20,7 +20,7 @@ class DB:
     def con(self):
         if self.target == 'production':
             if self.is_debug: print('connect production')
-            self.connect_iettydb()
+            self.connect_db()
         elif self.target == 'staging':
             if self.is_debug: print('connect staging')
             self.connect_staging()
@@ -35,49 +35,13 @@ class DB:
         self.db = create_engine(connector_str)
         return self
 
-    def connect_iettydb(self):
-        param_names = {
-            'production-iettydb-hostname': 'host',
-            'production-iettydb-user': 'user',
-            'production-iettydb-password': 'passwd'
-        }
-        p = self.getSsmParams(param_names)
-        self.connect_db(p['host'], p['user'], p['passwd'], 'iettydb')
-        return self
-
-    def connect_staging(self):
-        param_names = {
-            'staging-iettydb-hostname': 'host',
-            'staging-iettydb-user': 'user',
-            'staging-iettydb-password': 'passwd'
-        }
-        p = self.getSsmParams(param_names)
-        self.connect_db(p['host'], p['user'], p['passwd'], 'iettydb')
-        return self
-    
-    def connect_production_copy(self, host):
-        param_names = {
-            'production-iettydb-user': 'user',
-            'production-iettydb-password': 'passwd'
-        }
-        p = self.getSsmParams(param_names)
-        self.connect_db(host, p['user'], p['passwd'], 'iettydb')
-        return self
-
-
-    def getSsmParams(self, param_names):
-        response = boto3.client('ssm', region_name='ap-northeast-1').get_parameters(
-            Names=list(param_names.keys()), WithDecryption=True)
-        params = {param_names[x['Name']]: x['Value'] for x in response['Parameters']}
-        return params
-
     def read(self, query):
         if self.db is None:
             self.con()
         if self.is_debug: print(query)
         df = psql.read_sql(query, self.db)
         return df
-    
+
     def execute(self, query):
         if self.db is None:
             self.con()
@@ -88,8 +52,6 @@ class DB:
         except Exception as e:
             return str(e)
         return "success"
-
-
 
     def update(self, df, target_table, tmp_table):
         df.to_sql(tmp_table, self.db, if_exists='replace', chunksize=10000)
