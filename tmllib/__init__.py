@@ -13,7 +13,7 @@ from .tfrecords_local import *
 from .tfrecords import *
 
 __copyright__    = 'Copyright (C) 2023 Takemi Ohama'
-__version__      = '0.0.1'
+__version__      = '0.0.5'
 __license__      = 'MIT'
 __author__       = 'Takemi Ohama'
 __author_email__ = 'takmei.ohama@gmail.com'
