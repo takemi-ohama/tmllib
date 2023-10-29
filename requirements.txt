@@ -3,6 +3,8 @@ sqlalchemy
 boto3
 google.cloud
 pydantic
+setuptools
+
 
 
 
