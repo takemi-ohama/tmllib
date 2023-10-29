@@ -1,0 +1,15 @@
+pandas
+sqlalchemy
+boto3
+google.oauth2
+google.cloud
+pydantic
+
+
+
+
+
+
+
+
+
