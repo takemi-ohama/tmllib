@@ -1,6 +1,8 @@
+pandas
+sqlalchemy
 boto3
 google.cloud
-google.oauth2
-pandas
 pydantic
-sqlalchemy
+setuptools
+scikit-learn
+redis

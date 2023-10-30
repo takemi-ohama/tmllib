@@ -2,13 +2,12 @@
 import json
 import boto3
 import pandas as pd
-import bigquery as bigquery
-from etltool import Helper
-from kintone import Kintone
 import hashlib
 from google.api_core.exceptions import NotFound
-from config_abc import BaseConfig
-
+from .config_abc import BaseConfig
+from .etltool import EtlHelper
+from .bigquery import BigQuery
+from .kintone import Kintone
 
 class BQKintone:
 
@@ -19,8 +18,8 @@ class BQKintone:
             .get_parameter(Name=self.conf.app_list, WithDecryption=True)
             ['Parameter']['Value']
         )
-        self.db = bigquery.DB(conf)
-        self.helper = Helper()
+        self.db = BigQuery(conf)
+        self.helper = EtlHelper()
         self.schema_type = 'type'
 
         # フィールド名変換辞書。結局ほぼ全部_に変換したので、setで十分かも。

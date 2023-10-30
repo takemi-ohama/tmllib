@@ -4,9 +4,8 @@ boto3
 google.cloud
 pydantic
 setuptools
-
-
-
+scikit-learn
+redis
 
 
 

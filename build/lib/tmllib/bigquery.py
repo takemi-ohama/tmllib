@@ -6,7 +6,7 @@ from google.oauth2 import service_account
 import boto3
 import os
 from google.cloud import bigquery
-from config_abc import BaseConfig
+from .config_abc import BaseConfig
 
 
 class BigQuery:

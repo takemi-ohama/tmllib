@@ -9,8 +9,6 @@ from .etltool import *
 from .evaluator import *
 from .kintone import *
 from .parallelget import *
-from .tfrecords_local import *
-from .tfrecords import *
 
 __copyright__ = 'Copyright (C) 2023 Takemi Ohama'
 __VERSION__ = '0.0.0'

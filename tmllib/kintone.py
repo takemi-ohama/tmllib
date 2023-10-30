@@ -1,8 +1,8 @@
 import requests
-from etltool import Helper
 import numpy as np
 import math
 import json
+from .etltool import EtlHelper
 
 class Kintone:
     """
@@ -22,7 +22,7 @@ class Kintone:
             'Content-Type': 'application/json'
         }
         self.property, self.fields = self._get_property()
-        self.helper = Helper()
+        self.helper = EtlHelper()
 
     def select_all(self, where=None, fields=None, hard_limit=None):
         params = {
@@ -110,7 +110,7 @@ class Kintone:
         return
 
     def _update_chunk(self,params):
-        data = {'app': self.app, 'records': params}
+        data = {'app': self.app, 'records': list(params)}
         response = self._request_kintone('PUT', 'records.json', json_data=data)
         return response
 

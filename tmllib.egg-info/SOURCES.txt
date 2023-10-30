@@ -8,7 +8,6 @@ tmllib/__init__.py
 tmllib/aurora.py
 tmllib/awstool.py
 tmllib/bigquery.py
-tmllib/bigquery_gcb.py
 tmllib/bq_kintone.py
 tmllib/config_abc.py
 tmllib/elasticcache.py
@@ -16,8 +15,6 @@ tmllib/etltool.py
 tmllib/evaluator.py
 tmllib/kintone.py
 tmllib/parallelget.py
-tmllib/tfrecords.py
-tmllib/tfrecords_local.py
 tmllib.egg-info/PKG-INFO
 tmllib.egg-info/SOURCES.txt
 tmllib.egg-info/dependency_links.txt
