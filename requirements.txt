@@ -6,10 +6,3 @@ pydantic
 setuptools
 scikit-learn
 redis
-
-
-
-
-
-
-

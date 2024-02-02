@@ -14,7 +14,7 @@ class BQKintone:
     def __init__(self, conf: BaseConfig, tables):
         self.conf = conf
         self.apps = json.loads(
-            boto3.client('ssm', region_name=self.conf.aws_region)
+            boto3.client('ssm', region_name=self.conf.aws_region, profile=self.conf.aws_profile)
             .get_parameter(Name=self.conf.app_list, WithDecryption=True)
             ['Parameter']['Value']
         )

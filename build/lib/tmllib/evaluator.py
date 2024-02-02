@@ -24,11 +24,11 @@ class Evaluator:
 
         # 特徴量の詳細情報を表示
         print("重要度リスト-----------------------------------")
-        # self.printfull(non_zero_importance)
+        self.printfull(non_zero_importance)
 
         # 重要度が0の項目を表示
         print("重要度0の特徴量---------------------------------")
-        # self.printfull(zero_importance)
+        self.printfull(zero_importance)
 
         # 重要度に基づいてトップとワーストの特徴量を表示
         print(f"トップ{num}------------------------------")

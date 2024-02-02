@@ -1,6 +1,5 @@
 from .aurora import *
 from .awstool import *
-from .bigquery_gcb import *
 from .bigquery import *
 from .bq_kintone import *
 from .config_abc import *

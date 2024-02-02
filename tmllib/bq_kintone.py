@@ -9,15 +9,14 @@ from .etltool import EtlHelper
 from .bigquery import BigQuery
 from .kintone import Kintone
 
+
 class BQKintone:
 
     def __init__(self, conf: BaseConfig, tables):
         self.conf = conf
-        self.apps = json.loads(
-            boto3.client('ssm', region_name=self.conf.aws_region)
-            .get_parameter(Name=self.conf.app_list, WithDecryption=True)
-            ['Parameter']['Value']
-        )
+        session = boto3.Session(profile_name=self.conf.aws_profile, region_name=self.conf.aws_region)
+        param_json = session.client('ssm').get_parameter(Name=self.conf.app_list, WithDecryption=True)['Parameter']['Value']
+        self.apps = json.loads(param_json)
         self.db = BigQuery(conf)
         self.helper = EtlHelper()
         self.schema_type = 'type'
@@ -71,7 +70,7 @@ class BQKintone:
         t = values.T
         records = [
             {'id': int(x),
-             'record': {col_dic[y]:{'value': x} for x, y in zip(t[i], t[i].index)}
+             'record': {col_dic[y]: {'value': x} for x, y in zip(t[i], t[i].index)}
              }
             for i, x in enumerate(id)
         ]
@@ -208,7 +207,7 @@ class BQKintone:
         try:
             df = self.db.query(sql)
         except NotFound as e:
-            return 0
+            return '1900-01-01'
         last_updated_at = df['last_updated_at'][0].strftime('%Y-%m-%dT%H:%M:%SZ') if len(df) > 0 else '1900-01-01'
         return last_updated_at
 
@@ -297,7 +296,7 @@ class BQKintone:
         schema = [
             {
                 'name': k, self.schema_type: type_dic[fields[k]['type']],
-                'mode':self._mode(fields[k])
+                'mode': self._mode(fields[k])
             }
             for k in df.columns
         ]

@@ -16,5 +16,13 @@ Classifier: Programming Language :: Python :: 3.11
 Classifier: Topic :: Database
 Classifier: Topic :: Software Development :: Libraries :: Python Modules
 License-File: LICENSE
+Requires-Dist: pandas
+Requires-Dist: sqlalchemy
+Requires-Dist: boto3
+Requires-Dist: google.cloud
+Requires-Dist: pydantic
+Requires-Dist: setuptools
+Requires-Dist: scikit-learn
+Requires-Dist: redis
 
 Currently, it is not designed for casual use. It is under maintenance.
