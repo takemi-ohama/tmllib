@@ -3,21 +3,22 @@ import json
 import boto3
 import pandas as pd
 import hashlib
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, Conflict
 from .config_abc import BaseConfig
 from .etltool import EtlHelper
 from .bigquery import BigQuery
 from .kintone import Kintone
+import datetime
+
 
 class BQKintone:
 
     def __init__(self, conf: BaseConfig, tables):
         self.conf = conf
-        self.apps = json.loads(
-            boto3.client('ssm', region_name=self.conf.aws_region, profile=self.conf.aws_profile)
-            .get_parameter(Name=self.conf.app_list, WithDecryption=True)
-            ['Parameter']['Value']
-        )
+        session = boto3.Session(region_name=self.conf.aws_region)
+        param_json = session.client('ssm').get_parameter(
+            Name=self.conf.app_list, WithDecryption=True)['Parameter']['Value']
+        self.apps = json.loads(param_json)
         self.db = BigQuery(conf)
         self.helper = EtlHelper()
         self.schema_type = 'type'
@@ -28,7 +29,7 @@ class BQKintone:
             '.': '_', '/': '_', ';': '_', '?': '_', '@': '_', '[': '_', '\\': '_',
             ']': '_', '^': '_', '`': '_', '{': '_', '}': '_', '~': '_', '【': '_',
             '】': '_', '−': '_', '（': '_', '）': '_', '・': '_', '、': '_',
-            '\ufeff': '', '※': '_', '。': '_', '：': '_', '　': '_',
+            '\ufeff': '', '※': '_', '。': '_', '：': '_', '　': '_', '→': '_',
         })
 
         # [{kintoneアプリ名: bigquertテーブル名},{...}...]
@@ -45,6 +46,7 @@ class BQKintone:
         tablename = self.tables[appname]
         last_updated_at = self._get_last_updated_at(tablename)
         where = f'更新日時 > "{last_updated_at}"'
+        print("where", where)
         self.etl(tablename, appname, where)
 
     def insert_as_id(self, appname):
@@ -71,7 +73,7 @@ class BQKintone:
         t = values.T
         records = [
             {'id': int(x),
-             'record': {col_dic[y]:{'value': x} for x, y in zip(t[i], t[i].index)}
+             'record': {col_dic[y]: {'value': x} for x, y in zip(t[i], t[i].index)}
              }
             for i, x in enumerate(id)
         ]
@@ -117,6 +119,9 @@ class BQKintone:
         # insert intoに渡すフィールド一覧を作成
         tmp_fields = self._get_fieldnames(f'{tablename}_tmp')
         fields = "`" + "`, `".join(tmp_fields['column_name'].to_list()) + "`"
+
+        # 初回実行用にcreate table
+        self._create_original(tablename, f'{tablename}_tmp')
 
         # 存在しないフィールドを検知したときはalter table add columnを実行
         self._add_columns(tablename, tmp_fields)
@@ -165,12 +170,18 @@ class BQKintone:
             sql = f"create table {tablename} clone {tablename}_tmp;"
             self.db.query_with_noreturn(sql)
 
+    def _create_original(self, original, tmptable):
+            """tmpテーブルからoriginalテーブルを作成"""
+            sql = f"create table if not exists {original} as select id,revision,* except(id,revision), current_timestamp() as inserted_at from {tmptable};"
+            self.db.query_with_noreturn(sql)
+
     def _add_columns(self, tablename, tmp_fields):
         """originalにないフィールドを検出した際にフィールドをalter table add columnする"""
         org_fields = self._get_fieldnames(f'{tablename}')
         tmp_set = set(tmp_fields['column_name'].to_list())
         org_set = set(org_fields['column_name'].to_list())
         tmp_type = {x: y for x, y in zip(tmp_fields['column_name'], tmp_fields['data_type'])}
+        org_set = set(org_fields['column_name'].to_list())
 
         # 差集合を取って新フィールドを検出
         diff = tmp_set - org_set
@@ -203,13 +214,16 @@ class BQKintone:
         return col_utf8, fields_md5
 
     def _get_last_updated_at(self, tablename):
-        """bigquery転送済みデータの最新更新日次を返す"""
+        """bigquery転送済みデータの最新更新日次の2時間前を返す"""
         sql = f"select max(`更新日時`) as last_updated_at from {tablename}"
         try:
             df = self.db.query(sql)
         except NotFound as e:
-            return 0
-        last_updated_at = df['last_updated_at'][0].strftime('%Y-%m-%dT%H:%M:%SZ') if len(df) > 0 else '1900-01-01'
+            return '1900-01-01'
+        if len(df) == 0:
+            return '1900-01-01'
+        last_updated_at = df['last_updated_at'][0] + datetime.timedelta(hours=-2)
+        last_updated_at = last_updated_at.strftime('%Y-%m-%dT%H:%M:%SZ')
         return last_updated_at
 
     def _get_last_id(self, tablename):
@@ -264,40 +278,21 @@ class BQKintone:
     def _create_schema(self, df, fields):
         '''
         フィールド定義からbiqrueryのスキーマを生成する
-        が、Parquetのチェックが厳しすぎて転送できないのでほぼStringで送って
-        bigquery側で型変換を行う羽目になった。
+        が、Parquetのチェックが厳しすぎて転送できないのでほぼStringで送ってbigquery側で型変換を行う
         '''
         type_dic = {
             'RADIO_BUTTON': 'bool',
-
-            # numeric(bigqueryに転送後にalter tableで型変換)
-            'NUMBER': 'String',
-            'RECORD_NUMBER': 'String',
-
-            'SINGLE_LINE_TEXT': 'String',
-            'DROP_DOWN': 'String',
-            'MULTI_LINE_TEXT': 'String',
-            'LINK': 'String',
-
-            # json
-            'CHECK_BOX': 'String',
-            'USER_SELECT': 'String',
-            'MULTI_SELECT': 'String',
-            'SUBTABLE': 'String',
-            'MODIFIER': 'String',
-            'CREATOR': 'String',
-
             'DATE': 'DATE',
+            'TIME': 'String',
             'UPDATED_TIME': 'TIMESTAMP',
             'DATETIME': 'TIMESTAMP',
             'CREATED_TIME': 'TIMESTAMP',
-            'CALC': 'string',  # TODO
         }
 
         schema = [
             {
-                'name': k, self.schema_type: type_dic[fields[k]['type']],
-                'mode':self._mode(fields[k])
+                'name': k, self.schema_type: type_dic[fields[k]['type']] if fields[k]['type'] in type_dic else 'String',
+                'mode': self._mode(fields[k])
             }
             for k in df.columns
         ]
@@ -318,6 +313,7 @@ class BQKintone:
             'DATETIME': (None, pd.to_datetime),
             'TIMESTAMP': (None, pd.to_datetime),
             'DATE': ('datetime64[ns]', pd.to_datetime),
+            'TIME': ('datetime64[ns]', pd.to_datetime),
             'String': (str, None)
         }
 

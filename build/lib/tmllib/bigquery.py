@@ -40,8 +40,10 @@ class BigQuery:
         if self.account_type == 'file':
             self._cred = service_account.Credentials.from_service_account_file(self.json_key)
         elif self.account_type == 'ssm':
-            json_key = json.loads(boto3.client('ssm', region_name=self.region).get_parameter(
-                Name=self.json_key, WithDecryption=True)['Parameter']['Value'])
+            session = boto3.Session(profile_name=self.conf.aws_profile, region_name=self.conf.aws_region)
+            param_json = session.client('ssm').get_parameter(
+                Name=self.json_key, WithDecryption=True)['Parameter']['Value']
+            json_key = json.loads(param_json)
             self._cred = service_account.Credentials.from_service_account_info(json_key)
         elif self.account_type == 'env':
             self._cred = service_account.Credentials.from_service_account_file(
