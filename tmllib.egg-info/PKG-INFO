@@ -1,12 +1,13 @@
 Metadata-Version: 2.1
 Name: tmllib
-Version: 0.0.0
+Version: 0.0.1
 Summary: etl tools for machine leraning.
-Home-page: https://github.com/takemi-ohama/mllib
+Home-page: https://github.com/takemi-ohama/tmllib
 Author: Takemi Ohama
 Author-email: takmei.ohama@gmail.com
 License: MIT
 Keywords: etl,machine learning,bigquery,kintone
+Platform: UNKNOWN
 Classifier: Development Status :: 1 - Planning
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python
@@ -18,3 +19,4 @@ Classifier: Topic :: Software Development :: Libraries :: Python Modules
 License-File: LICENSE
 
 Currently, it is not designed for casual use. It is under maintenance.
+

@@ -15,5 +15,6 @@ class BaseConfig(BaseModel):
     project_id: str
     is_debug: bool
     aws_region: Optional[str]
+    aws_profile: Optional[str]
     gbq_location: Optional[str]
     app_list: Optional[str]

@@ -1,8 +1,8 @@
-pandas
-sqlalchemy
 boto3
 google.cloud
+pandas
 pydantic
-setuptools
-scikit-learn
 redis
+scikit-learn
+setuptools
+sqlalchemy
