@@ -41,19 +41,28 @@ class Evaluator:
     def printfull(self, x):
         max_rows = pd.get_option('display.max_rows')
         pd.set_option('display.max_rows', None)
-        display(x)
+        try:
+            display(x)
+        except NameError:
+            print(x)
         pd.set_option('display.max_rows', max_rows)
 
     def print_topx(self, x, num=20):
         with pd.option_context('display.max_rows', num * 2):
-            display(x.head(num))
+            try:
+                display(x.head(num))
+            except NameError:
+                print(x.head(num))
 
     def show_valuation(self, test_y, pred_y, prob_y=None):
         print("...valuation...")
         report = mt.classification_report(test_y, pred_y, output_dict=True)
         df = pd.DataFrame(report).T
         df['support'] = df['support'].astype('int')
-        display(df)
+        try:
+            display(df)
+        except NameError:
+            print(df)
         print('accuracy_score: {0:.3f}'.format(mt.accuracy_score(test_y, pred_y)))
         if prob_y is not None:
             try:
