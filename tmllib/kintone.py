@@ -40,7 +40,11 @@ class Kintone:
     def _request_kintone(self, method, endpoint, json_data=None):
         url = self.base_url.format(endpoint)
         try:
-            response = requests.request(method, url, json=json_data, headers=self.headers)
+            # GETリクエストではparamsを使用、それ以外ではjsonを使用
+            if method == 'GET':
+                response = requests.request(method, url, params=json_data, headers={'X-Cybozu-API-Token': self.api_token})
+            else:
+                response = requests.request(method, url, json=json_data, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -110,7 +114,17 @@ class Kintone:
         return
 
     def _update_chunk(self,params):
-        data = {'app': self.app, 'records': list(params)}
+        # paramsを正しいkintone API形式に変換
+        # params: [{'id': 1, 'field1': {'value': 'val1'}}, ...]
+        # → records: [{'id': 1, 'record': {'field1': {'value': 'val1'}}}, ...]
+        records = []
+        for param in params:
+            record_id = param.pop('id')  # idを取り出す
+            records.append({
+                'id': record_id,
+                'record': param  # 残りのフィールドをrecordに格納
+            })
+        data = {'app': int(self.app), 'records': records}
         response = self._request_kintone('PUT', 'records.json', json_data=data)
         return response
 
