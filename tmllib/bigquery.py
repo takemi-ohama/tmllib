@@ -2,6 +2,7 @@ import json
 import pdb
 
 import pandas as pd
+import pandas_gbq
 from google.oauth2 import service_account
 import boto3
 import os
@@ -26,11 +27,11 @@ class BigQuery:
     def read_gbq(self, query, args={}):
         query = query.format(**args)
         if self.conf.is_debug: print(query)
-        df = pd.read_gbq(query, project_id=self.project_id, dialect='standard', credentials=self.cred())
+        df = pandas_gbq.read_gbq(query, project_id=self.project_id, dialect='standard', credentials=self.cred())
         return df
 
     def write_gbq(self, df, tablename, table_schema=None, location=None, if_exists='replace'):
-        df.to_gbq(tablename, project_id=self.project_id, if_exists=if_exists,
+        pandas_gbq.to_gbq(df, tablename, project_id=self.project_id, if_exists=if_exists,
                   credentials=self.cred(), table_schema=table_schema, location=location)
         return df
 
