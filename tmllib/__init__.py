@@ -11,7 +11,7 @@ from .kintone import *
 from .parallelget import *
 
 __copyright__ = 'Copyright (C) 2023 Takemi Ohama'
-__VERSION__ = '0.0.3'
+__VERSION__ = '0.2.0'
 __license__ = 'MIT'
 __author__ = 'Takemi Ohama'
 __author_email__ = 'takmei.ohama@gmail.com'
