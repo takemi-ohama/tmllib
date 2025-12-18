@@ -363,7 +363,7 @@ class Pipeline:
         self.cache = cache_dir + '{}.cache'
         self.returns = returns
 
-        self.vars = re.compile('^\#.*\#$')
+        self.vars = re.compile(r'^#.*#$')
         self.helper = Helper()
 
     def run(self, breakpoint=None):
