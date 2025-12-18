@@ -10,7 +10,7 @@ from .kintone import *
 from .parallelget import *
 
 __copyright__ = 'Copyright (C) 2023 Takemi Ohama'
-__VERSION__ = '0.2.3'
+__VERSION__ = '0.2.4'
 __license__ = 'MIT'
 __author__ = 'Takemi Ohama'
 __author_email__ = 'takmei.ohama@gmail.com'

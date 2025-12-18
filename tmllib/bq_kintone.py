@@ -79,7 +79,7 @@ class BQKintone:
         ]
 
         info = self.apps[app_name]
-        app = Kintone(info['api_token'], info['sub_domain'], info['app_id'])
+        app = Kintone(info['api_token'], info['sub_domain'], info['app_id'], is_debug=self.conf.is_debug)
         res = app.update(records)
         return res
 
@@ -271,7 +271,7 @@ class BQKintone:
     def _select(self, app_name, where=None, fields=None, limit=None):
         """kintoneの情報を取得する"""
         info = self.apps[app_name]
-        app = Kintone(info['api_token'], info['sub_domain'], info['app_id'])
+        app = Kintone(info['api_token'], info['sub_domain'], info['app_id'], is_debug=self.conf.is_debug)
         res = app.select_all(where, fields, hard_limit=limit)
         return pd.DataFrame(res), app.fields
 

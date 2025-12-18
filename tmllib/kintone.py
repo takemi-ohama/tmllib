@@ -14,16 +14,16 @@ class Kintone:
 
     BASE_URL_TEMPLATE = 'https://{}.cybozu.com/k/v1/{}'
 
-    def __init__(self, api_token, domain, app):
+    def __init__(self, api_token, domain, app, is_debug=False):
         self.api_token = api_token
         self.base_url = self.BASE_URL_TEMPLATE.format(domain, '{}')
         self.app = app
+        self.is_debug = is_debug
         self.headers = {
             "X-Cybozu-API-Token": self.api_token,
             'Content-Type': 'application/json'
         }
         self.property, self.fields = self._get_property()
-        self.helper = EtlHelper()
 
     def select_all(self, where=None, fields=None, hard_limit=None):
         params = {
@@ -40,7 +40,8 @@ class Kintone:
 
     def _request_kintone(self, method, endpoint, json_data=None):
         url = self.base_url.format(endpoint)
-        print(f"[DEBUG] kintone request: {method} {url}")
+        if self.is_debug:
+            print(f"[DEBUG] kintone request: {method} {url}")
         try:
             # GETリクエストではparamsを使用、それ以外ではjsonを使用
             if method == 'GET':
@@ -50,14 +51,16 @@ class Kintone:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.HTTPError as e:
-            if e.response is not None:
-                print(f"[DEBUG] Response status: {e.response.status_code}")
-                print(f"[DEBUG] Response body: {e.response.text}")
-            else:
-                print(f"[DEBUG] HTTPError with no response object")
+            if self.is_debug:
+                if e.response is not None:
+                    print(f"[DEBUG] Response status: {e.response.status_code}")
+                    print(f"[DEBUG] Response body: {e.response.text}")
+                else:
+                    print(f"[DEBUG] HTTPError with no response object")
             raise
         except Exception as e:
-            print(f"[DEBUG] Exception: {type(e).__name__}: {str(e)}")
+            if self.is_debug:
+                print(f"[DEBUG] Exception: {type(e).__name__}: {str(e)}")
             raise
 
     def _get_property(self):
@@ -144,9 +147,10 @@ class Kintone:
                     'record': param_copy
                 })
         data = {'app': int(self.app), 'records': records}
-        print(f"[DEBUG] update_chunk: app={self.app}, records_count={len(records)}")
-        if len(records) > 0:
-            print(f"[DEBUG] first record: {records[0]}")
+        if self.is_debug:
+            print(f"[DEBUG] update_chunk: app={self.app}, records_count={len(records)}")
+            if len(records) > 0:
+                print(f"[DEBUG] first record: {records[0]}")
 
         try:
             response = self._request_kintone('PUT', 'records.json', json_data=data)
