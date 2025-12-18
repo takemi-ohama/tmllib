@@ -110,20 +110,27 @@ class Kintone:
         """kintone rest apiの制限(updateは1回100件)に従って分割送信"""
         cnt = math.ceil(len(records) / 100)
         chunk = list(np.array_split(records, cnt))
-        self.helper.parallel(self._update_chunk, args=chunk,chunk=10)
+        # 並列処理を無効化して順次処理に変更（404エラー回避）
+        for c in chunk:
+            self._update_chunk(c)
         return
 
     def _update_chunk(self,params):
         # paramsを正しいkintone API形式に変換
-        # params: [{'id': 1, 'field1': {'value': 'val1'}}, ...]
-        # → records: [{'id': 1, 'record': {'field1': {'value': 'val1'}}}, ...]
+        # 既に'record'キーが存在する場合はそのまま使用、ない場合は追加
         records = []
         for param in params:
-            record_id = param.pop('id')  # idを取り出す
-            records.append({
-                'id': record_id,
-                'record': param  # 残りのフィールドをrecordに格納
-            })
+            param_copy = param.copy()
+            if 'record' in param_copy:
+                # 既にrecordキーがある場合はそのまま使用
+                records.append(param_copy)
+            else:
+                # recordキーがない場合は追加
+                record_id = param_copy.pop('id')
+                records.append({
+                    'id': record_id,
+                    'record': param_copy
+                })
         data = {'app': int(self.app), 'records': records}
         response = self._request_kintone('PUT', 'records.json', json_data=data)
         return response
