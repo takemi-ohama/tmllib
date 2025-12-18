@@ -1,8 +1,0 @@
-boto3
-google.cloud
-pandas
-pydantic
-redis
-scikit-learn
-setuptools
-sqlalchemy
