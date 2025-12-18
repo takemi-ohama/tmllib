@@ -2,6 +2,7 @@ import requests
 import numpy as np
 import math
 import json
+import time
 from .etltool import EtlHelper
 
 class Kintone:
@@ -39,6 +40,7 @@ class Kintone:
 
     def _request_kintone(self, method, endpoint, json_data=None):
         url = self.base_url.format(endpoint)
+        print(f"[DEBUG] kintone request: {method} {url}")
         try:
             # GETリクエストではparamsを使用、それ以外ではjsonを使用
             if method == 'GET':
@@ -47,8 +49,16 @@ class Kintone:
                 response = requests.request(method, url, json=json_data, headers=self.headers)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"Request failed: {str(e)}")
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None:
+                print(f"[DEBUG] Response status: {e.response.status_code}")
+                print(f"[DEBUG] Response body: {e.response.text}")
+            else:
+                print(f"[DEBUG] HTTPError with no response object")
+            raise
+        except Exception as e:
+            print(f"[DEBUG] Exception: {type(e).__name__}: {str(e)}")
+            raise
 
     def _get_property(self):
         params = {'app': self.app, 'lang': 'default'}
@@ -110,12 +120,14 @@ class Kintone:
         """kintone rest apiの制限(updateは1回100件)に従って分割送信"""
         cnt = math.ceil(len(records) / 100)
         chunk = list(np.array_split(records, cnt))
-        # 並列処理を無効化して順次処理に変更（404エラー回避）
-        for c in chunk:
+        # 並列処理を無効化して順次処理に変更（レート制限対応）
+        for i, c in enumerate(chunk):
+            if i > 0:
+                time.sleep(1)  # レート制限対策: 1秒待機
             self._update_chunk(c)
         return
 
-    def _update_chunk(self,params):
+    def _update_chunk(self, params):
         # paramsを正しいkintone API形式に変換
         # 既に'record'キーが存在する場合はそのまま使用、ない場合は追加
         records = []
@@ -132,8 +144,41 @@ class Kintone:
                     'record': param_copy
                 })
         data = {'app': int(self.app), 'records': records}
-        response = self._request_kintone('PUT', 'records.json', json_data=data)
-        return response
+        print(f"[DEBUG] update_chunk: app={self.app}, records_count={len(records)}")
+        if len(records) > 0:
+            print(f"[DEBUG] first record: {records[0]}")
+
+        try:
+            response = self._request_kintone('PUT', 'records.json', json_data=data)
+            return response
+        except requests.exceptions.HTTPError as e:
+            # GAIA_RE01: 指定したレコードが見つかりません
+            if e.response is not None and e.response.status_code == 404:
+                error_body = e.response.json() if e.response.text else {}
+                if error_body.get('code') == 'GAIA_RE01':
+                    # 存在しないレコードIDを特定してスキップ
+                    print(f"[WARNING] Record not found, trying individual updates...")
+                    return self._update_records_individually(records)
+            raise
+
+    def _update_records_individually(self, records):
+        """レコードを1件ずつ更新し、存在しないレコードはスキップする"""
+        success_count = 0
+        skip_count = 0
+        for record in records:
+            data = {'app': int(self.app), 'records': [record]}
+            try:
+                self._request_kintone('PUT', 'records.json', json_data=data)
+                success_count += 1
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 404:
+                    print(f"[WARNING] Skipping non-existent record id={record.get('id')}")
+                    skip_count += 1
+                else:
+                    raise
+            time.sleep(0.1)  # レート制限対策
+        print(f"[INFO] Individual update completed: success={success_count}, skipped={skip_count}")
+        return {'success': success_count, 'skipped': skip_count}
 
     @staticmethod
     def _convert_to_number(value):
