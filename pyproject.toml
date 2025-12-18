@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tmllib"
+version = "0.2.1"
+description = "etl tools for machine learning."
+readme = "README.rst"
+license = { text = "MIT" }
+authors = [
+    { name = "Takemi Ohama", email = "takmei.ohama@gmail.com" }
+]
+keywords = ["etl", "machine learning", "bigquery", "kintone"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "sqlalchemy",
+    "boto3",
+    "google-cloud-core",
+    "google-cloud-bigquery",
+    "pydantic",
+    "setuptools",
+    "scikit-learn",
+    "redis",
+]
+
+[project.urls]
+Homepage = "https://github.com/takemi-ohama/tmllib"
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["tmllib"]
